@@ -1,4 +1,4 @@
-package com.ogbuilds.url_shortener_app.common.dto;
+package com.ogbuilds.url_shortener_app.common.exception;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;

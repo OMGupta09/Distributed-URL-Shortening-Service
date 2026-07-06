@@ -1,14 +1,21 @@
 package com.ogbuilds.url_shortener_app.url.service;
 
-import com.ogbuilds.url_shortener_app.url.dto.CreateShortUrlRequest;
-import com.ogbuilds.url_shortener_app.url.dto.ShortUrlResponse;
-import jakarta.servlet.http.HttpServletResponse;
+import com.ogbuilds.url_shortener_app.url.dto.*;
 
-import java.io.IOException;
+import java.util.List;
 
 public interface UrlService {
     ShortUrlResponse createShortUrl(CreateShortUrlRequest request);
 
     public String getOriginalUrl(String shortCode);
 
+    List<UrlResponse> getMyUrls();
+
+    void deleteUrl(Long id);
+
+    UrlResponse getUrl(Long id);
+
+    UrlResponse updateUrl(Long id, UpdateUrlRequest request);
+
+    UrlAnalyticsResponse getAnalytics(Long id);
 }

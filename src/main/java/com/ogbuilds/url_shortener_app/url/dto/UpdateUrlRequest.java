@@ -4,16 +4,10 @@ import jakarta.validation.constraints.NotBlank;
 import lombok.Getter;
 import lombok.Setter;
 
-import java.time.LocalDateTime;
-
 @Getter
 @Setter
-public class CreateShortUrlRequest {
+public class UpdateUrlRequest {
 
     @NotBlank(message = "Original URL is required.")
     private String originalUrl;
-
-    private String customAlias;
-
-    private LocalDateTime expiresAt;
 }

@@ -7,6 +7,8 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import java.time.LocalDateTime;
+
 @Getter
 @Setter
 @Entity
@@ -22,5 +24,13 @@ public class Url extends BaseEntity {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name="user_id", nullable = false)
     private User owner;
+
+    @Column
+    private LocalDateTime expiresAt;
+
+    @Column(nullable = false)
+    private Long clickCount = 0L;
+
+    private LocalDateTime lastAccessedAt;
 
 }
