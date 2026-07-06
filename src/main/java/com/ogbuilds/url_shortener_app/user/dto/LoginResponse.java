@@ -10,10 +10,12 @@ public class LoginResponse {
     private Long id;
     private String username;
     private String email;
+    private String token;
 
-    public LoginResponse(Long id, String username, String email) {
+    public LoginResponse(Long id, String username, String email,String token) {
         this.username = username;
         this.id = id;
         this.email = email;
+        this.token=token;
     }
 }

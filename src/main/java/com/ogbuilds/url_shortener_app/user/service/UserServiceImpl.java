@@ -1,5 +1,6 @@
 package com.ogbuilds.url_shortener_app.user.service;
 
+import com.ogbuilds.url_shortener_app.jwt.JwtService;
 import com.ogbuilds.url_shortener_app.user.dto.LoginRequest;
 import com.ogbuilds.url_shortener_app.user.dto.LoginResponse;
 import com.ogbuilds.url_shortener_app.user.dto.RegisterUserRequest;
@@ -10,6 +11,9 @@ import com.ogbuilds.url_shortener_app.user.exception.EmailAlreadyExistsException
 import com.ogbuilds.url_shortener_app.user.mapper.UserMapper;
 import com.ogbuilds.url_shortener_app.user.repository.UserRespository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -20,9 +24,12 @@ import java.util.Optional;
 @RequiredArgsConstructor
 public class UserServiceImpl implements UserService{
 
+
     private final UserRespository userRespository;
     private final UserMapper userMapper;
     private final PasswordEncoder passwordEncoder;
+    private final JwtService jwtService;
+    private final AuthenticationManager authenticationManager;
 
     @Override
     public UserResponse register(RegisterUserRequest request) {
@@ -52,18 +59,22 @@ public class UserServiceImpl implements UserService{
     @Override
     public LoginResponse login(LoginRequest request) {
 
-        User user = userRespository.findByEmail(request.getEmail())
-                .orElseThrow(() ->
-                        new RuntimeException("Invalid Credentials"));
+        Authentication authentication = authenticationManager.authenticate(
+                new UsernamePasswordAuthenticationToken(
+                        request.getEmail(),
+                        request.getPassword()
+                )
+        );
 
-        if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
-            throw new RuntimeException("Invalid Credentials");
-        }
+        User user = (User) authentication.getPrincipal();
+
+        String token= jwtService.generateToken(user);
 
         return new LoginResponse(
                 user.getId(),
                 user.getUsername(),
-                user.getEmail()
+                user.getEmail(),
+                token
         );
 
     }

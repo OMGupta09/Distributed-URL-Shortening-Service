@@ -16,3 +16,13 @@ spring:
     properties:
       hibernate:
         format_sql: true
+
+jwt:
+  secret: veryveryveryverylongsecretkeyforjwtgeneration
+  expiration: 3600000
+
+logging:
+  level:
+    org:
+      springframework:
+        security=DEBUG:
