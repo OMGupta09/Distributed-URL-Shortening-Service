@@ -148,8 +148,7 @@ public class UrlServiceImpl implements UrlService {
     }
 
 
-    private User getCurrentUser()
-    {
+    private User getCurrentUser() {
         Authentication authentication =
                 SecurityContextHolder.getContext().getAuthentication();
 

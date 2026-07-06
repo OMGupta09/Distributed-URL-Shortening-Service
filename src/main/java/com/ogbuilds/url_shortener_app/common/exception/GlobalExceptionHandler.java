@@ -6,8 +6,6 @@ import com.ogbuilds.url_shortener_app.url.exception.UnauthorizedUrlAccessExcepti
 import com.ogbuilds.url_shortener_app.url.exception.UrlExpiredException;
 import com.ogbuilds.url_shortener_app.user.exception.EmailAlreadyExistsException;
 import com.ogbuilds.url_shortener_app.user.exception.UserAlreadyExistsException;
-import org.apache.coyote.Response;
-import org.springframework.data.redis.serializer.RedisSerializationContext;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -23,8 +21,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(UserAlreadyExistsException.class)
     public ResponseEntity<ErrorResponse> handleUsernameException(
-            UserAlreadyExistsException ex)
-    {
+            UserAlreadyExistsException ex) {
         ErrorResponse response = new ErrorResponse(
                 HttpStatus.CONFLICT.value(),
                 ex.getMessage(),
@@ -36,8 +33,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(EmailAlreadyExistsException.class)
     public ResponseEntity<ErrorResponse> handleEmailException(
-            EmailAlreadyExistsException ex)
-    {
+            EmailAlreadyExistsException ex) {
         ErrorResponse response = new ErrorResponse(
                 HttpStatus.CONFLICT.value(),
                 ex.getMessage(),
@@ -103,8 +99,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(UnauthorizedUrlAccessException.class)
     public ResponseEntity<ErrorResponse> unauthorizedUrlAccessException(
             UnauthorizedUrlAccessException ex
-    )
-    {
+    ) {
         ErrorResponse response = new ErrorResponse(
                 HttpStatus.UNAUTHORIZED.value(),
                 ex.getMessage(),
@@ -116,8 +111,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(UrlExpiredException.class)
     public ResponseEntity<ErrorResponse> urlExpiredException(
             UrlExpiredException ex
-    )
-    {
+    ) {
         ErrorResponse response =
                 new ErrorResponse(
                         HttpStatus.GONE.value(),
@@ -125,7 +119,7 @@ public class GlobalExceptionHandler {
                         LocalDateTime.now()
                 );
 
-            return ResponseEntity.status(HttpStatus.GONE).body(response);
+        return ResponseEntity.status(HttpStatus.GONE).body(response);
     }
 
     @ExceptionHandler(AliasAlreadyExistsException.class)

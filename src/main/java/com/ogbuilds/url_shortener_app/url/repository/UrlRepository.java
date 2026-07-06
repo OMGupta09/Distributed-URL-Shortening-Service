@@ -1,6 +1,5 @@
 package com.ogbuilds.url_shortener_app.url.repository;
 
-import com.ogbuilds.url_shortener_app.url.dto.UrlResponse;
 import com.ogbuilds.url_shortener_app.url.entity.Url;
 import com.ogbuilds.url_shortener_app.user.entity.User;
 import org.springframework.data.jpa.repository.JpaRepository;

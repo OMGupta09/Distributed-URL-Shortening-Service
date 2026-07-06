@@ -7,7 +7,7 @@ import java.util.List;
 public interface UrlService {
     ShortUrlResponse createShortUrl(CreateShortUrlRequest request);
 
-    public String getOriginalUrl(String shortCode);
+    String getOriginalUrl(String shortCode);
 
     List<UrlResponse> getMyUrls();
 

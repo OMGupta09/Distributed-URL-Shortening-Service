@@ -21,8 +21,7 @@ public class UrlController {
     @PostMapping
     public ShortUrlResponse createShortUrl(
             @Valid @RequestBody CreateShortUrlRequest request
-            )
-    {
+    ) {
         return urlService.createShortUrl(request);
     }
 
