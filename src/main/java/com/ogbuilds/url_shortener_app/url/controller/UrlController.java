@@ -19,17 +19,12 @@ public class UrlController {
 
 
     @PostMapping
-    public ShortUrlResponse createShortUrl(
-            @Valid @RequestBody CreateShortUrlRequest request
-    ) {
+    public ShortUrlResponse createShortUrl(@Valid @RequestBody CreateShortUrlRequest request) {
         return urlService.createShortUrl(request);
     }
 
     @GetMapping("/{shortCode}")
-    public void redirect(
-            @PathVariable("shortCode") String shortCode,
-            HttpServletResponse response
-    ) throws IOException {
+    public void redirect(@PathVariable("shortCode") String shortCode, HttpServletResponse response) throws IOException {
         response.sendRedirect(urlService.getOriginalUrl(shortCode));
     }
 
@@ -48,16 +43,13 @@ public class UrlController {
     }
 
     @PutMapping("/id/{id}")
-    public UrlResponse updateUrl(
-            @PathVariable Long id,
-            @Valid @RequestBody UpdateUrlRequest request) {
+    public UrlResponse updateUrl(@PathVariable Long id, @Valid @RequestBody UpdateUrlRequest request) {
 
         return urlService.updateUrl(id, request);
     }
 
     @GetMapping("/id/{id}/analytics")
-    public UrlAnalyticsResponse getAnalytics(
-            @PathVariable Long id) {
+    public UrlAnalyticsResponse getAnalytics(@PathVariable Long id) {
 
         return urlService.getAnalytics(id);
     }
