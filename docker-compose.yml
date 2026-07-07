@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
 
   redis:
@@ -7,6 +5,19 @@ services:
     container_name: UrlShortener
     ports:
       - "6379:6379"
+
+
+  mysql:
+    image: mysql:8.4
+    container_name: mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: rootPASSWORDdocker
+      MYSQL_DATABASE: url-shortener-db
+    ports:
+      - "6969:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
 
   kafka:
     image: apache/kafka:latest
@@ -26,3 +37,28 @@ services:
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+
+  app:
+    build: .
+    container_name: url-shortener-app
+
+    depends_on:
+      - mysql
+      - redis
+      - kafka
+
+    ports:
+      - "8080:8080"
+
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/url-shortener-db
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: rootPASSWORDdocker
+
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_DATA_REDIS_PORT: 6379
+
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+
+      JWT_SECRET: veryveryveryverylongsecretkeyforjwtgeneration
+      JWT_EXPIRATION: 3600000

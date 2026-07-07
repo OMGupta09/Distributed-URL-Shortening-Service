@@ -5,10 +5,12 @@ import com.ogbuilds.url_shortener_app.url.service.UrlService;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.io.IOException;
+import java.util.List;
 
 @RestController
 @RequestMapping("/urls")
@@ -17,41 +19,68 @@ public class UrlController {
 
     private final UrlService urlService;
 
-
     @PostMapping
-    public ShortUrlResponse createShortUrl(@Valid @RequestBody CreateShortUrlRequest request) {
+    public ShortUrlResponse createShortUrl(
+            @Valid @RequestBody CreateShortUrlRequest request) {
+
         return urlService.createShortUrl(request);
     }
 
+    // Public redirect endpoint
     @GetMapping("/{shortCode}")
-    public void redirect(@PathVariable("shortCode") String shortCode, HttpServletResponse response) throws IOException {
+    public void redirect(
+            @PathVariable String shortCode,
+            HttpServletResponse response
+    ) throws IOException {
+
         response.sendRedirect(urlService.getOriginalUrl(shortCode));
     }
 
-    @DeleteMapping("/id/{id}")
-    public ResponseEntity<Void> deleteUrl(@PathVariable Long id) {
+    // Current user's URLs
+    @GetMapping("/me")
+    public List<UrlResponse> getMyUrls() {
 
-        urlService.deleteUrl(id);
+        return urlService.getMyUrls();
+    }
+
+    @GetMapping("/id/{urlId}")
+    public UrlResponse getUrl(
+            @PathVariable Long urlId) {
+
+        return urlService.getUrl(urlId);
+    }
+
+    @PutMapping("/id/{urlId}")
+    public UrlResponse updateUrl(
+            @PathVariable Long urlId,
+            @Valid @RequestBody UpdateUrlRequest request) {
+
+        return urlService.updateUrl(urlId, request);
+    }
+
+    @DeleteMapping("/id/{urlId}")
+    public ResponseEntity<Void> deleteUrl(
+            @PathVariable Long urlId) {
+
+        urlService.deleteUrl(urlId);
 
         return ResponseEntity.noContent().build();
     }
 
-    @GetMapping("/id/{id}")
-    public UrlResponse getUrl(@PathVariable Long id) {
+    @GetMapping("/id/{urlId}/analytics")
+    public UrlAnalyticsResponse getAnalytics(
+            @PathVariable Long urlId) {
 
-        return urlService.getUrl(id);
+        return urlService.getAnalytics(urlId);
     }
 
-    @PutMapping("/id/{id}")
-    public UrlResponse updateUrl(@PathVariable Long id, @Valid @RequestBody UpdateUrlRequest request) {
+    @GetMapping(
+            value = "/id/{urlId}/qr",
+            produces = MediaType.IMAGE_PNG_VALUE
+    )
+    public byte[] generateQrCode(
+            @PathVariable Long urlId) {
 
-        return urlService.updateUrl(id, request);
+        return urlService.generateQrCode(urlId);
     }
-
-    @GetMapping("/id/{id}/analytics")
-    public UrlAnalyticsResponse getAnalytics(@PathVariable Long id) {
-
-        return urlService.getAnalytics(id);
-    }
-
 }

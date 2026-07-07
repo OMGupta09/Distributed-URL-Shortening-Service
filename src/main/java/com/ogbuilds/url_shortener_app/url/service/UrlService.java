@@ -19,4 +19,6 @@ public interface UrlService {
     UrlResponse updateUrl(Long id, UpdateUrlRequest request);
 
     UrlAnalyticsResponse getAnalytics(Long id);
+
+    byte[] generateQrCode(Long id);
 }

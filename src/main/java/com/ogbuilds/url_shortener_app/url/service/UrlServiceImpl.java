@@ -1,6 +1,7 @@
 package com.ogbuilds.url_shortener_app.url.service;
 
 import com.ogbuilds.url_shortener_app.kafka.event.UrlClickEvent;
+import com.ogbuilds.url_shortener_app.kafka.producer.UrlClickProducer;
 import com.ogbuilds.url_shortener_app.url.dto.*;
 import com.ogbuilds.url_shortener_app.url.entity.Url;
 import com.ogbuilds.url_shortener_app.url.exception.AliasAlreadyExistsException;
@@ -9,15 +10,15 @@ import com.ogbuilds.url_shortener_app.url.exception.UnauthorizedUrlAccessExcepti
 import com.ogbuilds.url_shortener_app.url.exception.UrlExpiredException;
 import com.ogbuilds.url_shortener_app.url.mapper.UrlMapper;
 import com.ogbuilds.url_shortener_app.url.repository.UrlRepository;
+import com.ogbuilds.url_shortener_app.url.util.QrCodeGenerator;
 import com.ogbuilds.url_shortener_app.url.util.ShortCodeGenerator;
 import com.ogbuilds.url_shortener_app.user.entity.User;
-import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
-import com.ogbuilds.url_shortener_app.kafka.producer.UrlClickProducer;
+import org.springframework.beans.factory.annotation.Value;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
@@ -26,6 +27,9 @@ import java.util.List;
 @Service
 @RequiredArgsConstructor
 public class UrlServiceImpl implements UrlService {
+
+    @Value("${app.base-url}")
+    private String baseUrl;
 
     private final RedisTemplate<String, String> redisTemplate;
     private final UrlRepository urlRepository;
@@ -65,14 +69,12 @@ public class UrlServiceImpl implements UrlService {
         return new ShortUrlResponse(
                 url.getOriginalUrl(),
                 url.getShortCode(),
-                "http://localhost:8080/urls/" + url.getShortCode());
-
+                baseUrl+ "/urls/" + url.getShortCode()
+        );
     }
 
     @Override
     public String getOriginalUrl(String shortCode) {
-
-        String cachedUrl = redisTemplate.opsForValue().get(shortCode);
 
         Url url = urlRepository.findByShortCode(shortCode)
                 .orElseThrow(() ->
@@ -89,6 +91,8 @@ public class UrlServiceImpl implements UrlService {
                         shortCode
                 )
         );
+
+        String cachedUrl = redisTemplate.opsForValue().get(shortCode);
 
         if (cachedUrl != null) {
             return cachedUrl;
@@ -117,17 +121,16 @@ public class UrlServiceImpl implements UrlService {
 
         User currentUser = getCurrentUser();
 
-        List<Url> urls = urlRepository.findAllByOwner(currentUser);
-
-        return urls.stream()
+        return urlRepository.findAllByOwner(currentUser)
+                .stream()
                 .map(urlMapper::toUrlResponse)
                 .toList();
     }
 
     @Override
-    public void deleteUrl(Long id) {
+    public void deleteUrl(Long urlId) {
 
-        Url url = getOwnedUrl(id);
+        Url url = getOwnedUrl(urlId);
 
         redisTemplate.delete(url.getShortCode());
 
@@ -135,16 +138,17 @@ public class UrlServiceImpl implements UrlService {
     }
 
     @Override
-    public UrlResponse getUrl(Long id) {
+    public UrlResponse getUrl(Long urlId) {
 
-        return urlMapper.toUrlResponse(getOwnedUrl(id));
+        return urlMapper.toUrlResponse(getOwnedUrl(urlId));
     }
 
     @Override
-    public UrlResponse updateUrl(Long id,
-                                 UpdateUrlRequest request) {
+    public UrlResponse updateUrl(
+            Long urlId,
+            UpdateUrlRequest request) {
 
-        Url url = getOwnedUrl(id);
+        Url url = getOwnedUrl(urlId);
 
         url.setOriginalUrl(request.getOriginalUrl());
 
@@ -155,15 +159,36 @@ public class UrlServiceImpl implements UrlService {
         return urlMapper.toUrlResponse(url);
     }
 
-    private Url getOwnedUrl(Long id) {
+    @Override
+    public UrlAnalyticsResponse getAnalytics(Long urlId) {
+
+        Url url = getOwnedUrl(urlId);
+
+        return urlMapper.toAnalyticsResponse(url);
+    }
+
+    @Override
+    public byte[] generateQrCode(Long urlId) {
+
+        Url url = getOwnedUrl(urlId);
+
+        String shortUrl =
+                baseUrl + "/urls/" + url.getShortCode();
+
+        System.out.println(shortUrl);
+
+        return QrCodeGenerator.generate(shortUrl);
+    }
+
+    private Url getOwnedUrl(Long urlId) {
 
         User currentUser = getCurrentUser();
 
-        Url url = urlRepository.findById(id)
+        Url url = urlRepository.findById(urlId)
                 .orElseThrow(() ->
                         new ShortUrlNotFoundException("URL not found"));
 
-        if (url.getOwner().getId() != currentUser.getId()) {
+        if (url.getOwner().getId() != (currentUser.getId())) {
             throw new UnauthorizedUrlAccessException(
                     "You are not authorized to access this URL."
             );
@@ -172,24 +197,12 @@ public class UrlServiceImpl implements UrlService {
         return url;
     }
 
-    @Override
-    public UrlAnalyticsResponse getAnalytics(Long id) {
-
-        Url url = getOwnedUrl(id);
-
-        return urlMapper.toAnalyticsResponse(url);
-    }
-
-
     private User getCurrentUser() {
+
         Authentication authentication =
                 SecurityContextHolder.getContext().getAuthentication();
 
         return (User) authentication.getPrincipal();
     }
 
-    @PostConstruct
-    public void init() {
-        System.out.println(urlClickProducer);
-    }
 }

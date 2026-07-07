@@ -2,6 +2,9 @@ spring:
   application:
     name: url-shortener-app
 
+  app:
+    base-url: http://localhost:8080
+
   datasource:
     url: jdbc:mysql://localhost:6969/url-shortener-db
     username: root
@@ -29,8 +32,8 @@ jwt:
   secret: veryveryveryverylongsecretkeyforjwtgeneration
   expiration: 3600000
 
-logging:
-  level:
-    org.apache.kafka.clients.consumer: DEBUG
-    org.springframework.kafka: DEBUG
+#logging:
+#  level:
+#    org.apache.kafka.clients.consumer: DEBUG
+#    org.springframework.kafka: DEBUG
 
