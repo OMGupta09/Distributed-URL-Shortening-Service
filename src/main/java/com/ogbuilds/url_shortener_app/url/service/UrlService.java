@@ -5,6 +5,7 @@ import com.ogbuilds.url_shortener_app.url.dto.*;
 import java.util.List;
 
 public interface UrlService {
+
     ShortUrlResponse createShortUrl(CreateShortUrlRequest request);
 
     String getOriginalUrl(String shortCode);

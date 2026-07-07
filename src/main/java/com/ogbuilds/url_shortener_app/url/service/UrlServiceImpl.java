@@ -1,5 +1,6 @@
 package com.ogbuilds.url_shortener_app.url.service;
 
+import com.ogbuilds.url_shortener_app.kafka.event.UrlClickEvent;
 import com.ogbuilds.url_shortener_app.url.dto.*;
 import com.ogbuilds.url_shortener_app.url.entity.Url;
 import com.ogbuilds.url_shortener_app.url.exception.AliasAlreadyExistsException;
@@ -10,11 +11,15 @@ import com.ogbuilds.url_shortener_app.url.mapper.UrlMapper;
 import com.ogbuilds.url_shortener_app.url.repository.UrlRepository;
 import com.ogbuilds.url_shortener_app.url.util.ShortCodeGenerator;
 import com.ogbuilds.url_shortener_app.user.entity.User;
+import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
+import com.ogbuilds.url_shortener_app.kafka.producer.UrlClickProducer;
 
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -22,8 +27,10 @@ import java.util.List;
 @RequiredArgsConstructor
 public class UrlServiceImpl implements UrlService {
 
+    private final RedisTemplate<String, String> redisTemplate;
     private final UrlRepository urlRepository;
     private final UrlMapper urlMapper;
+    private final UrlClickProducer urlClickProducer;
 
     @Override
     public ShortUrlResponse createShortUrl(CreateShortUrlRequest request) {
@@ -65,6 +72,8 @@ public class UrlServiceImpl implements UrlService {
     @Override
     public String getOriginalUrl(String shortCode) {
 
+        String cachedUrl = redisTemplate.opsForValue().get(shortCode);
+
         Url url = urlRepository.findByShortCode(shortCode)
                 .orElseThrow(() ->
                         new ShortUrlNotFoundException("Short URL not found"));
@@ -74,11 +83,31 @@ public class UrlServiceImpl implements UrlService {
             throw new UrlExpiredException("This URL has expired.");
         }
 
-        url.setClickCount(url.getClickCount() + 1);
+        urlClickProducer.publishClickEvent(
+                new UrlClickEvent(
+                        url.getId(),
+                        shortCode
+                )
+        );
 
-        url.setLastAccessedAt(LocalDateTime.now());
+        if (cachedUrl != null) {
+            return cachedUrl;
+        }
 
-        urlRepository.save(url);
+        Duration ttl = Duration.ofHours(24);
+
+        if (url.getExpiresAt() != null) {
+            ttl = Duration.between(
+                    LocalDateTime.now(),
+                    url.getExpiresAt()
+            );
+        }
+
+        redisTemplate.opsForValue().set(
+                shortCode,
+                url.getOriginalUrl(),
+                ttl
+        );
 
         return url.getOriginalUrl();
     }
@@ -100,6 +129,8 @@ public class UrlServiceImpl implements UrlService {
 
         Url url = getOwnedUrl(id);
 
+        redisTemplate.delete(url.getShortCode());
+
         urlRepository.delete(url);
     }
 
@@ -118,6 +149,8 @@ public class UrlServiceImpl implements UrlService {
         url.setOriginalUrl(request.getOriginalUrl());
 
         urlRepository.save(url);
+
+        redisTemplate.delete(url.getShortCode());
 
         return urlMapper.toUrlResponse(url);
     }
@@ -153,5 +186,10 @@ public class UrlServiceImpl implements UrlService {
                 SecurityContextHolder.getContext().getAuthentication();
 
         return (User) authentication.getPrincipal();
+    }
+
+    @PostConstruct
+    public void init() {
+        System.out.println(urlClickProducer);
     }
 }
