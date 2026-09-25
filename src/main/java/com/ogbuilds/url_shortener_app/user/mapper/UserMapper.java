@@ -8,9 +8,9 @@ import org.springframework.stereotype.Component;
 @Component
 public class UserMapper {
 
-    public User toEntity(RegisterUserRequest request)
-    {
-        User user=new User();
+    public User toEntity(RegisterUserRequest request) {
+
+        User user = new User();
 
         user.setUsername(request.getUsername());
         user.setEmail(request.getEmail());
@@ -19,13 +19,11 @@ public class UserMapper {
         return user;
     }
 
-    public UserResponse toResponse(User user)
-    {
+    public UserResponse toResponse(User user) {
+
         return new UserResponse(
                 user.getUsername(),
-                user.getEmail(),
-                user.getPassword()
+                user.getEmail()
         );
     }
-
 }

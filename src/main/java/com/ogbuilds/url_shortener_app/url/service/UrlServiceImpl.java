@@ -1,5 +1,7 @@
 package com.ogbuilds.url_shortener_app.url.service;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ogbuilds.url_shortener_app.kafka.event.UrlClickEvent;
 import com.ogbuilds.url_shortener_app.kafka.producer.UrlClickProducer;
 import com.ogbuilds.url_shortener_app.url.dto.*;
@@ -14,11 +16,12 @@ import com.ogbuilds.url_shortener_app.url.util.QrCodeGenerator;
 import com.ogbuilds.url_shortener_app.url.util.ShortCodeGenerator;
 import com.ogbuilds.url_shortener_app.user.entity.User;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
-import org.springframework.beans.factory.annotation.Value;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
@@ -26,6 +29,7 @@ import java.util.List;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class UrlServiceImpl implements UrlService {
 
     @Value("${app.base-url}")
@@ -35,6 +39,7 @@ public class UrlServiceImpl implements UrlService {
     private final UrlRepository urlRepository;
     private final UrlMapper urlMapper;
     private final UrlClickProducer urlClickProducer;
+    private final ObjectMapper objectMapper;
 
     @Override
     public ShortUrlResponse createShortUrl(CreateShortUrlRequest request) {
@@ -69,22 +74,81 @@ public class UrlServiceImpl implements UrlService {
         return new ShortUrlResponse(
                 url.getOriginalUrl(),
                 url.getShortCode(),
-                baseUrl+ "/urls/" + url.getShortCode()
+                baseUrl.replaceAll("/+$", "")
+                        + "/urls/"
+                        + url.getShortCode()
         );
     }
 
     @Override
     public String getOriginalUrl(String shortCode) {
 
-        Url url = urlRepository.findByShortCode(shortCode)
-                .orElseThrow(() ->
-                        new ShortUrlNotFoundException("Short URL not found"));
+        /*
+         * 1. Check Redis first.
+         */
+        String cachedData = redisTemplate.opsForValue().get(shortCode);
 
-        if (url.getExpiresAt() != null &&
-                LocalDateTime.now().isAfter(url.getExpiresAt())) {
-            throw new UrlExpiredException("This URL has expired.");
+        if (cachedData != null) {
+
+            try {
+                CachedUrl cachedUrl =
+                        objectMapper.readValue(
+                                cachedData,
+                                CachedUrl.class
+                        );
+
+                /*
+                 * URL was found in cache.
+                 * Publish click event with the actual DB URL ID.
+                 */
+                urlClickProducer.publishClickEvent(
+                        new UrlClickEvent(
+                                cachedUrl.urlId(),
+                                shortCode
+                        )
+                );
+
+                return cachedUrl.originalUrl();
+
+            } catch (JsonProcessingException ex) {
+
+                /*
+                 * Corrupted/invalid cache entry.
+                 * Delete it and fall back to MySQL.
+                 */
+                log.warn(
+                        "Invalid Redis cache entry for shortCode={}. Removing cache.",
+                        shortCode
+                );
+
+                redisTemplate.delete(shortCode);
+            }
         }
 
+        /*
+         * 2. Cache miss → fetch from MySQL.
+         */
+        Url url = urlRepository.findByShortCode(shortCode)
+                .orElseThrow(() ->
+                        new ShortUrlNotFoundException(
+                                "Short URL not found"
+                        )
+                );
+
+        /*
+         * 3. Check expiration.
+         */
+        if (url.getExpiresAt() != null &&
+                LocalDateTime.now().isAfter(url.getExpiresAt())) {
+
+            throw new UrlExpiredException(
+                    "This URL has expired."
+            );
+        }
+
+        /*
+         * 4. Publish analytics event.
+         */
         urlClickProducer.publishClickEvent(
                 new UrlClickEvent(
                         url.getId(),
@@ -92,26 +156,47 @@ public class UrlServiceImpl implements UrlService {
                 )
         );
 
-        String cachedUrl = redisTemplate.opsForValue().get(shortCode);
-
-        if (cachedUrl != null) {
-            return cachedUrl;
-        }
-
+        /*
+         * 5. Calculate Redis TTL.
+         */
         Duration ttl = Duration.ofHours(24);
 
         if (url.getExpiresAt() != null) {
+
             ttl = Duration.between(
                     LocalDateTime.now(),
                     url.getExpiresAt()
             );
         }
 
-        redisTemplate.opsForValue().set(
-                shortCode,
-                url.getOriginalUrl(),
-                ttl
+        /*
+         * 6. Cache urlId + originalUrl.
+         */
+        CachedUrl cachedUrl = new CachedUrl(
+                url.getId(),
+                url.getOriginalUrl()
         );
+
+        try {
+
+            String json =
+                    objectMapper.writeValueAsString(cachedUrl);
+
+            redisTemplate.opsForValue().set(
+                    shortCode,
+                    json,
+                    ttl
+            );
+
+        } catch (JsonProcessingException ex) {
+
+            log.warn(
+                    "Failed to cache URL for shortCode={}",
+                    shortCode,
+                    ex
+            );
+        }
+
 
         return url.getOriginalUrl();
     }
@@ -132,6 +217,9 @@ public class UrlServiceImpl implements UrlService {
 
         Url url = getOwnedUrl(urlId);
 
+        /*
+         * Remove cached entry.
+         */
         redisTemplate.delete(url.getShortCode());
 
         urlRepository.delete(url);
@@ -140,7 +228,9 @@ public class UrlServiceImpl implements UrlService {
     @Override
     public UrlResponse getUrl(Long urlId) {
 
-        return urlMapper.toUrlResponse(getOwnedUrl(urlId));
+        return urlMapper.toUrlResponse(
+                getOwnedUrl(urlId)
+        );
     }
 
     @Override
@@ -154,6 +244,9 @@ public class UrlServiceImpl implements UrlService {
 
         urlRepository.save(url);
 
+        /*
+         * Remove stale cached value.
+         */
         redisTemplate.delete(url.getShortCode());
 
         return urlMapper.toUrlResponse(url);
@@ -173,9 +266,9 @@ public class UrlServiceImpl implements UrlService {
         Url url = getOwnedUrl(urlId);
 
         String shortUrl =
-                baseUrl + "/urls/" + url.getShortCode();
-
-        System.out.println(shortUrl);
+                baseUrl.replaceAll("/+$", "")
+                        + "/urls/"
+                        + url.getShortCode();
 
         return QrCodeGenerator.generate(shortUrl);
     }
@@ -186,9 +279,12 @@ public class UrlServiceImpl implements UrlService {
 
         Url url = urlRepository.findById(urlId)
                 .orElseThrow(() ->
-                        new ShortUrlNotFoundException("URL not found"));
+                        new ShortUrlNotFoundException(
+                                "URL not found"
+                        )
+                );
 
-        if (url.getOwner().getId() != (currentUser.getId())) {
+        if (currentUser.getId() != url.getOwner().getId()) {
             throw new UnauthorizedUrlAccessException(
                     "You are not authorized to access this URL."
             );
@@ -200,9 +296,16 @@ public class UrlServiceImpl implements UrlService {
     private User getCurrentUser() {
 
         Authentication authentication =
-                SecurityContextHolder.getContext().getAuthentication();
+                SecurityContextHolder
+                        .getContext()
+                        .getAuthentication();
 
         return (User) authentication.getPrincipal();
     }
 
+    private record CachedUrl(
+            Long urlId,
+            String originalUrl
+    ) {
+    }
 }

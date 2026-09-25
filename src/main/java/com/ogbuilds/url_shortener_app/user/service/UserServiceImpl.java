@@ -8,21 +8,19 @@ import com.ogbuilds.url_shortener_app.user.dto.UserResponse;
 import com.ogbuilds.url_shortener_app.user.entity.Role;
 import com.ogbuilds.url_shortener_app.user.entity.User;
 import com.ogbuilds.url_shortener_app.user.exception.EmailAlreadyExistsException;
+import com.ogbuilds.url_shortener_app.user.exception.UserAlreadyExistsException;
 import com.ogbuilds.url_shortener_app.user.mapper.UserMapper;
 import com.ogbuilds.url_shortener_app.user.repository.UserRespository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
-import java.util.Optional;
-
 @Service
 @RequiredArgsConstructor
-public class UserServiceImpl implements UserService{
+public class UserServiceImpl implements UserService {
 
 
     private final UserRespository userRespository;
@@ -34,13 +32,11 @@ public class UserServiceImpl implements UserService{
     @Override
     public UserResponse register(RegisterUserRequest request) {
 
-        if(userRespository.existsByUsername(request.getUsername()))
-        {
-            throw new UsernameNotFoundException("Username already exists!");
+        if (userRespository.existsByUsername(request.getUsername())) {
+            throw new UserAlreadyExistsException("Username already exists!");
         }
 
-        if(userRespository.existsByEmail(request.getEmail()))
-        {
+        if (userRespository.existsByEmail(request.getEmail())) {
             throw new EmailAlreadyExistsException("Email already exists!");
         }
 
@@ -68,7 +64,7 @@ public class UserServiceImpl implements UserService{
 
         User user = (User) authentication.getPrincipal();
 
-        String token= jwtService.generateToken(user);
+        String token = jwtService.generateToken(user);
 
         return new LoginResponse(
                 user.getId(),

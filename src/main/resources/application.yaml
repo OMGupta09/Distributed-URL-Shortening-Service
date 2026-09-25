@@ -1,39 +1,37 @@
+server:
+  port: ${PORT:8080}
+  address: 0.0.0.0
+
+app:
+  base-url: ${APP_BASE_URL:http://localhost:8080}
+
 spring:
   application:
     name: url-shortener-app
 
-  app:
-    base-url: http://localhost:8080
-
   datasource:
-    url: jdbc:mysql://localhost:6969/url-shortener-db
-    username: root
-    password: rootPASSWORDdocker
+    url: ${SPRING_DATASOURCE_URL:jdbc:mysql://localhost:6969/url-shortener-db}
+    username: ${SPRING_DATASOURCE_USERNAME:root}
+    password: ${SPRING_DATASOURCE_PASSWORD}
 
   jpa:
     hibernate:
-      ddl-auto: update
-
-    show-sql: true
+      ddl-auto: ${DDL_AUTO:update}
+    show-sql: ${SHOW_SQL:false}
 
     properties:
       hibernate:
-        format_sql: true
+        format_sql: ${HIBERNATE_FORMAT_SQL:false}
+        jdbc:
+          time_zone: UTC
 
   data:
     redis:
-      host: localhost
-      port: 6379
+      url: ${SPRING_DATA_REDIS_URL:redis://localhost:6379}
 
   kafka:
-    bootstrap-servers: localhost:9092
+    bootstrap-servers: ${SPRING_KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
 
 jwt:
-  secret: veryveryveryverylongsecretkeyforjwtgeneration
-  expiration: 3600000
-
-#logging:
-#  level:
-#    org.apache.kafka.clients.consumer: DEBUG
-#    org.springframework.kafka: DEBUG
-
+  secret: ${JWT_SECRET}
+  expiration: ${JWT_EXPIRATION:3600000}

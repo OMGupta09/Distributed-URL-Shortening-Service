@@ -4,14 +4,18 @@ import com.ogbuilds.url_shortener_app.url.dto.CreateShortUrlRequest;
 import com.ogbuilds.url_shortener_app.url.dto.UrlAnalyticsResponse;
 import com.ogbuilds.url_shortener_app.url.dto.UrlResponse;
 import com.ogbuilds.url_shortener_app.url.entity.Url;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 @Component
 public class UrlMapper {
 
-    public Url toEntity(CreateShortUrlRequest request)
-    {
-        Url url=new Url();
+    @Value("${app.base-url}")
+    private String baseUrl;
+
+    public Url toEntity(CreateShortUrlRequest request) {
+
+        Url url = new Url();
 
         url.setOriginalUrl(request.getOriginalUrl());
         url.setExpiresAt(request.getExpiresAt());
@@ -19,13 +23,13 @@ public class UrlMapper {
         return url;
     }
 
-    public UrlResponse toUrlResponse(Url url)
-    {
+    public UrlResponse toUrlResponse(Url url) {
+
         return new UrlResponse(
                 url.getId(),
                 url.getOriginalUrl(),
                 url.getShortCode(),
-                "http://localhost:8080/urls/" + url.getShortCode(),
+                buildShortUrl(url.getShortCode()),
                 url.getCreatedAt()
         );
     }
@@ -40,5 +44,9 @@ public class UrlMapper {
                 url.getLastAccessedAt(),
                 url.getCreatedAt()
         );
+    }
+
+    private String buildShortUrl(String shortCode) {
+        return baseUrl.replaceAll("/+$", "") + "/urls/" + shortCode;
     }
 }

@@ -6,7 +6,7 @@ import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.apache.kafka.common.serialization.StringSerializer;
-import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.autoconfigure.kafka.KafkaProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.kafka.config.ConcurrentKafkaListenerContainerFactory;
@@ -24,8 +24,11 @@ import java.util.Map;
 @Configuration
 public class KafkaConfig {
 
-    @Value("${spring.kafka.bootstrap-servers}")
-    private String bootstrapServers;
+    private final KafkaProperties kafkaProperties;
+
+    public KafkaConfig(KafkaProperties kafkaProperties) {
+        this.kafkaProperties = kafkaProperties;
+    }
 
     @Bean
     public NewTopic urlClickTopic() {
@@ -37,11 +40,18 @@ public class KafkaConfig {
     @Bean
     public ProducerFactory<String, UrlClickEvent> producerFactory() {
 
-        Map<String, Object> config = new HashMap<>();
+        Map<String, Object> config =
+                new HashMap<>(kafkaProperties.buildProducerProperties());
 
-        config.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
-        config.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
-        config.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, JsonSerializer.class);
+        config.put(
+                ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG,
+                StringSerializer.class
+        );
+
+        config.put(
+                ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG,
+                JsonSerializer.class
+        );
 
         return new DefaultKafkaProducerFactory<>(config);
     }
@@ -54,18 +64,33 @@ public class KafkaConfig {
     @Bean
     public ConsumerFactory<String, UrlClickEvent> consumerFactory() {
 
-        Map<String, Object> config = new HashMap<>();
+        Map<String, Object> config =
+                new HashMap<>(kafkaProperties.buildConsumerProperties());
 
-        config.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
-        config.put(ConsumerConfig.GROUP_ID_CONFIG, "url-shortener-group");
-        config.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
+        config.put(
+                ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG,
+                StringDeserializer.class
+        );
 
+        config.put(
+                ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG,
+                ErrorHandlingDeserializer.class
+        );
 
-        config.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, ErrorHandlingDeserializer.class);
-        config.put(ErrorHandlingDeserializer.VALUE_DESERIALIZER_CLASS, JsonDeserializer.class.getName());
+        config.put(
+                ErrorHandlingDeserializer.VALUE_DESERIALIZER_CLASS,
+                JsonDeserializer.class.getName()
+        );
 
-        config.put(JsonDeserializer.VALUE_DEFAULT_TYPE, UrlClickEvent.class.getName());
-        config.put(JsonDeserializer.TRUSTED_PACKAGES, "com.ogbuilds.url_shortener_app.kafka.event");
+        config.put(
+                JsonDeserializer.VALUE_DEFAULT_TYPE,
+                UrlClickEvent.class.getName()
+        );
+
+        config.put(
+                JsonDeserializer.TRUSTED_PACKAGES,
+                "com.ogbuilds.url_shortener_app.kafka.event"
+        );
 
         return new DefaultKafkaConsumerFactory<>(config);
     }
@@ -80,10 +105,11 @@ public class KafkaConfig {
         factory.setConsumerFactory(consumerFactory());
 
         factory.setCommonErrorHandler(
-                new DefaultErrorHandler(new FixedBackOff(1000L, 3))
+                new DefaultErrorHandler(
+                        new FixedBackOff(1000L, 3)
+                )
         );
 
         return factory;
     }
-
 }

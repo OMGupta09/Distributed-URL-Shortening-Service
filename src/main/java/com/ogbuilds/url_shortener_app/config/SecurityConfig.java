@@ -5,6 +5,7 @@ import com.ogbuilds.url_shortener_app.user.service.CustomUserDetailsService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
@@ -58,10 +59,50 @@ public class SecurityConfig {
                 .sessionManagement(session ->
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(request ->
-                        request.requestMatchers("/users/register","/users/login").permitAll()
-                        .requestMatchers("/urls/**").permitAll()
-                                .requestMatchers("/urls/id/*/qr").permitAll()
-                                .anyRequest().authenticated())
+                        request
+                                .requestMatchers(
+                                        "/users/register",
+                                        "/users/login",
+                                        "/health"
+                                ).permitAll()
+
+                                .requestMatchers(
+                                        HttpMethod.POST,
+                                        "/urls"
+                                ).authenticated()
+
+                                .requestMatchers(
+                                        HttpMethod.GET,
+                                        "/urls/me",
+                                        "/urls/id/**"
+                                ).authenticated()
+
+                                .requestMatchers(
+                                        HttpMethod.PUT,
+                                        "/urls/id/**"
+                                ).authenticated()
+
+                                .requestMatchers(
+                                        HttpMethod.DELETE,
+                                        "/urls/id/**"
+                                ).authenticated()
+
+                                .requestMatchers(
+                                        HttpMethod.GET,
+                                        "/urls/*"
+                                ).permitAll()
+
+                                .requestMatchers(
+                                        "/swagger-ui/**",
+                                        "/swagger-ui.html",
+                                        "/v3/api-docs/**",
+                                        "/health",
+                                        "/users/register",
+                                        "/users/login"
+                                ).permitAll()
+
+                                .anyRequest().authenticated()
+                )
 //                .authorizeHttpRequests(request ->
 //                        request.anyRequest().permitAll())
                 .authenticationProvider(authenticationProvider())

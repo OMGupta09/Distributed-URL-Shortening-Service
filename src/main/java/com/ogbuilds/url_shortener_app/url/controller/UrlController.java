@@ -2,6 +2,7 @@ package com.ogbuilds.url_shortener_app.url.controller;
 
 import com.ogbuilds.url_shortener_app.url.dto.*;
 import com.ogbuilds.url_shortener_app.url.service.UrlService;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -20,6 +21,7 @@ public class UrlController {
     private final UrlService urlService;
 
     @PostMapping
+    @SecurityRequirement(name = "bearerAuth")
     public ShortUrlResponse createShortUrl(
             @Valid @RequestBody CreateShortUrlRequest request) {
 
@@ -38,12 +40,14 @@ public class UrlController {
 
     // Current user's URLs
     @GetMapping("/me")
+    @SecurityRequirement(name = "bearerAuth")
     public List<UrlResponse> getMyUrls() {
 
         return urlService.getMyUrls();
     }
 
     @GetMapping("/id/{urlId}")
+    @SecurityRequirement(name = "bearerAuth")
     public UrlResponse getUrl(
             @PathVariable Long urlId) {
 
@@ -59,6 +63,7 @@ public class UrlController {
     }
 
     @DeleteMapping("/id/{urlId}")
+    @SecurityRequirement(name = "bearerAuth")
     public ResponseEntity<Void> deleteUrl(
             @PathVariable Long urlId) {
 
@@ -68,6 +73,7 @@ public class UrlController {
     }
 
     @GetMapping("/id/{urlId}/analytics")
+    @SecurityRequirement(name = "bearerAuth")
     public UrlAnalyticsResponse getAnalytics(
             @PathVariable Long urlId) {
 
@@ -78,6 +84,7 @@ public class UrlController {
             value = "/id/{urlId}/qr",
             produces = MediaType.IMAGE_PNG_VALUE
     )
+    @SecurityRequirement(name = "bearerAuth")
     public byte[] generateQrCode(
             @PathVariable Long urlId) {
 
